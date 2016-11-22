@@ -136,29 +136,14 @@ void dump_elf_hdr(Elf64_Ehdr* elf_hdr){
 	//printf("elf_hdr->shstrndx = ");
 }
 
-void dump_elf_section(Elf64_Ehdr* elf_hdr,FILE* elf_file){
-	size_t all_section_size = elf_hdr->e_shnum * elf_hdr->e_shentsize;
-	char* buffer = (char*)malloc(all_section_size);
+void dump_elf_section(Elf64_Ehdr* elf_hdr){
 
-	fseek(elf_file,elf_hdr->e_shoff,SEEK_SET);
-    	if(ftell(elf_file) != elf_hdr->e_shoff){
-       		printf("error \n");
-        	exit(1);
-    	}
-
-	if(fread(buffer,all_section_size,1,elf_file) != 1){
-		perror("dump_elf_section");
-		exit(1);
-	}
-
-	Elf64_Shdr* shdr = (Elf64_Shdr*)buffer;
+	Elf64_Shdr* shdr = (Elf64_Shdr*)((char*)elf_hdr + elf_hdr->e_shoff);
 
 	for(int i = 0;i < elf_hdr->e_shnum;i++){
-		printf("%d 's section name = %s \n",shdr->sh_name);
-		shdr++;
+		printf("%d 's section name = %s \n",i,shdr->sh_name);
+		shdr = (Elf64_Shdr*)((char*)shdr + elf_hdr->e_shentsize);
 	}
-
-	free(buffer);
 }
 
 int main(int argc,char* argv[]){
@@ -170,15 +155,21 @@ int main(int argc,char* argv[]){
 
 	char* elf_file_name = argv[1];
 	FILE* elf_file = NULL;
+	int file_len = 0;
 
 	if((elf_file = fopen(elf_file_name,"r")) == NULL){
 		perror(NULL);
 		exit(1);
 	}
 
-	char* buffer[sizeof(Elf64_Ehdr)];
+	fseek(elf_file,0,SEEK_END);
+	file_len = ftell(elf_file);
+	fseek(elf_file,0,SEEK_SET);
 
-	if(fread(buffer,sizeof(Elf64_Ehdr),1,elf_file) != 1){
+	printf("file_len = %d \n",file_len);
+	char* buffer = (char*)malloc(file_len);
+
+	if(fread(buffer,file_len,1,elf_file) != 1){
 		perror(NULL);
 		exit(1);
 	}
@@ -186,7 +177,9 @@ int main(int argc,char* argv[]){
 	Elf64_Ehdr* elf_hdr = (Elf64_Ehdr*)buffer;
 
 	dump_elf_hdr(elf_hdr);
-	dump_elf_section(elf_hdr,elf_file);
+	dump_elf_section(elf_hdr);
+
+	free(buffer);
 
 	return 0;
 }
